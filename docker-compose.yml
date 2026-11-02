@@ -1,0 +1,68 @@
+services:
+  # ベクトルデータベース (ChromaDB)
+  vector-db:
+    image: chromadb/chroma:latest
+    container_name: chroma_vector_db
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./data/chroma:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8000"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+  
+  multimodal-embedding-server:
+    build:
+      context: ./embedding_server
+      dockerfile: Dockerfile
+    container_name: multimodal_embedding_server
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./embedding_server:/app
+      - ./data/models:/models
+    environment:
+      - MODEL_ID=google/embeddinggemma-2
+      - HF_HOME=/models
+    # GPUを使用する場合は以下を有効化
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10m
+
+  # 画面表示と検索処理を行うアプリケーション
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: synesthesia_app
+    ports:
+      - "8501:8501"
+    environment:
+      - CHROMA_HOST=vector-db
+      - CHROMA_PORT=8000
+      - EMBEDDING_SERVER_URL=http://multimodal-embedding-server:8000
+    depends_on:
+      vector-db:
+        condition: service_healthy
+      multimodal-embedding-server:
+        condition: service_healthy
+    volumes:
+      - ./app:/app
+      - ./app/setting/models.json:/root/.pi/agent/models.json
+      - ./app/.agent/skills:/root/.agents/skills
+    restart: unless-stopped

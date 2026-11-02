@@ -1,0 +1,17 @@
+{
+  "$schema": "https://pi.dev/schemas/models.schema.json",
+  "providers": {
+    "ollama": {
+      "baseUrl": "http://host.docker.internal:11434/v1",
+      "api": "openai-completions",
+      "apiKey": "ollama",
+      "models": [
+        { "id": "huggingface.co/llm-jp/llm-jp-4.1-32b-a3b-thinking-gguf:latest" },
+        { "id": "lfm3:1.7b" },
+        { "id": "lfm3-vl:2b" },
+        { "id": "bonsai-2:27b" },
+        { "id": "hf.co/InternScience/Agents-A1-Q4_K_M-GGUF:latest" }
+      ]
+    }
+  }
+}
